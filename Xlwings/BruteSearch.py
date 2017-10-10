@@ -53,11 +53,10 @@ def process():
     wb.sheets[newSheetName].range('A1').options(transpose=True).value = newData
     wb.sheets[newSheetName].select()
 
-# In[30]:
-
 
 def brute(tmp):
     res = []
+    errs=[]
     for t in tmp:
         name = ""
         surname = ""
@@ -79,16 +78,21 @@ def brute(tmp):
             if (name != w and patronymic != w and surname == ""):
                 surname = w
 
-        if (surname == ""):
-            surname = "Not_Found"
         if (name == ""):
-            name = "Not_Found"
+            name = "N:'"+w+"'_Not_Found"
+            errs.append("name '" + w + "' in " + t)
         if (patronymic == ""):
-            patronymic = "Not_Found"
+            patronymic = "P:'"+w+"'_Not_Found"
+            errs.append("patronymic '" + w + "' in " + t)
         name = name.title()
         surname = surname.title()
         patronymic = patronymic.title()
         res.append(surname + " " + name + " " + patronymic)
+
+    if len(errs)!=0:
+        res.append("----Ошибки----")
+        for i in errs:
+            res.append(i)
     return res
 
 
