@@ -80,7 +80,7 @@ def brute(tmp):
 
         if (name == ""):
             name = "N:'"+w+"'_Not_Found"
-            errs.append("name '" + w + "' in " + t)
+            #errs.append("name '" + w + "' in " + t)
         if (patronymic == ""):
             patronymic = "P:'"+w+"'_Not_Found"
             errs.append("patronymic '" + w + "' in " + t)
