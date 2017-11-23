@@ -2,3 +2,4 @@
 .DS_Store
 data/megafonDB/magafon_data3.txt
 data/megafonDB/partDB.txt
+Roman/rf_model.pkl
