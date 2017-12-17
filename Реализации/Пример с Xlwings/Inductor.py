@@ -16,21 +16,7 @@ import xlwings as xw
 import pandas as pd
 import numpy as np
 
-path_to_names = "D:/"
-path_to_patronymics = "D:/"
 
-with open(path_to_names + "NamesFromGufo.pickle", "rb") as f:
-    tmpNames = pickle.load(f)
-with open(path_to_patronymics + "PatronymicsFromGufo.pickle", "rb") as f:
-    tmpPatronymics = pickle.load(f)
-
-all_names = []
-all_patronymics = []
-
-for i in tmpNames:
-    all_names.append(i)
-for i in tmpPatronymics:
-    all_patronymics.append(i)
 
 def process():
     wb = xw.Book.caller()
@@ -190,6 +176,7 @@ def NotBruteAtAll(temp):
         output = ""
         for r in result:
             for w in r:
+                w = w.strip()
                 output += w.title() + " "
         output += gender
         output = output.strip()
@@ -862,7 +849,7 @@ all_patronymics = {}
 for s in surnames:
     all_surnames[s] = surnames[s]
 for s in names:
-    all_names[s] = names[s]
+    all_names[s] = names[s][1]
 for s in patronymics:
     all_patronymics[s] = patronymics[s][1]
 
