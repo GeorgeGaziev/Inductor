@@ -1,20 +1,10 @@
-
-# coding: utf-8
-
-# In[20]:
-
-
-import urllib
-import urllib.parse
-import urllib.request
-from bs4 import BeautifulSoup
-import pickle
-from collections import Counter
-from collections import namedtuple
-import re
 import xlwings as xw
-import pandas as pd
+import os
+import pickle
+import re
 import numpy as np
+import copy
+import math
 
 
 
@@ -23,38 +13,35 @@ def process():
     data = wb.selection
     sheetName = wb.sheets.active.name
 
-    newSheetName = sheetName + "Changed"
+    newSheetName = sheetName + "-Changed"
 
-    flag=False
+    sheetPresence=False
     for i in wb.sheets:
         if i.name==newSheetName:
-            flag=True
+            sheetPresence=True
 
-    newData = NotBruteAtAll(data.value)
 
-    if flag==False:
+    if sheetPresence==False:
         xw.sheets.add(newSheetName, None, xw.sheets.active)
 
     wb.sheets[newSheetName].clear()
-    wb.sheets[newSheetName].range('A1').options(transpose=True).value = newData
     wb.sheets[newSheetName].select()
+    wb.sheets[newSheetName].range('A1').value = "Данные обрабатываются..."
+    newData = NotBruteAtAll(data.value)
 
+    counter = 1
+    # Значения qualityFlag: 0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах."
+    color = {
+        0: (0,128,0), #green
+        1: (255,255,0), #yellow
+        2: (0,0,255), #blue
+        3: (255,0,0) #red
+    }
 
-# coding: utf-8
+    for result in newData:
+        wb.sheets[newSheetName].range('A' + str(counter)).value = result
+        counter +=1
 
-# In[114]:
-
-
-import urllib.parse
-import urllib.request
-import pickle
-import re
-import numpy as np
-import copy
-import math
-import os
-
-# In[115]:
 
 
 # Используемые константы
