@@ -78,70 +78,23 @@ damerauInsertCost = 1
 damerauReplaceCost = 1
 damerauTransposeCost = 1
 
-grammaFactor = 0.9
+grammaFactor = 0.0000001
 # Коэффициент влияния проверки по грамматике на результат
 
-grammaSurnameFactor = 1
+grammaSurnameFactor = 0.0001
 # Коэффициент влияния проверки фамилии по грамматике на результат
 # (т.к. многие фамилии отсутствуют в базе, данный коэффициент имеет такой большой вес)
 
-grammaPatronymicFactor = 0.001
-
-
+grammaPatronymicFactor = 0  # .00001
 # Коэффициент влияния проверки отчества по грамматике на результат
 
-
-# In[116]:
-
-
-def TestMegafon():
-    # Тест на мегафоновской базе, просматривает все имена от 0 до N, и если после выполнения алгоритма что-то не сходится - выдает это
-    newTest = []
-    path_to_base = pathDirectory + "full_name_MegafonDB_DIRTY.pickle"
-    with open(path_to_base, "rb") as f:
-        newTest = pickle.load(f)
-    k = 0
-    m = 0
-    # N = len(newTest)
-    N = 1000
-    for i in range(N):
-        try:
-            words = newTest[i].lower()
-            words = words.split(" ")
-
-            result, order = WordsProcessing(words)
-            SetStatistics(order)  # обновляем статистику
-
-            output = ""
-            for r in result:
-                for w in r:
-                    output += w.title() + " "
-            out = output[:-1]
-            if out != newTest[i]:
-                print(str(i) + " " + str(newTest[i]) + ": " + str(out))
-                k += 1
-        except:
-            m += 1
-            print(str(i) + " " + str(newTest[i]) + ": Ошибка " + str(order))
-    print(k)
-    print(m)
+qualityCheck = 0.0000001
 
 
-# In[117]:
+# Если частота слова меньше заданной, то оно считается подозрительно редким
 
 
-# TestMegafon()
-# +нужно ограничить столбцы, если введено три слова то скорее всего это фио, а не два имени и отчество
-# Пока что не совпадают 6% (61 из 1000)
-# но в настоящих ошибок меньше, т.к. где-то исправляет е на ё, где-то исправляет ошибки, где-то оглы
-# + не все имена есть и не все отчества (нет дмитриевича например)
-
-# Типичные ошибки:
-# 460 Белашов Сергей Дмитриевич: Белашов Дмитриевич Сергей
-# + проверить правила образования отчеств, может ли быть отчество николаев, или обязательно николаевич
-
-
-# In[144]:
+# In[4]:
 
 
 def NotBruteAtAll(temp):
@@ -153,28 +106,28 @@ def NotBruteAtAll(temp):
         # +добавить здесь некую предобработку вводимой строки - удалить лишние пробелы, изменить е-ё и т.д.
         # +обработка фамильных приставок (фон, оглы ...), не рассматривать их как отдельное слово
 
-        result, order = WordsProcessing(words)
+        result, order, qualityFlag = WordsProcessing(words)
 
         SetStatistics(order)  # обновляем статистику
-        gender = ""
-        #         gender = CheckGender(result) #получаем пол, исходя из результата
-
+        # gender = CheckGender(result) #получаем пол, исходя из результата
+        #
         # вывод результата в виде строки
         output = ""
         for r in result:
             for w in r:
-                w = w.strip()
                 output += w.title() + " "
-        output += gender
-        output = output.strip()
-        res.append(output)
+        output.strip()
+        # output += gender
+
+        res.append([output, qualityFlag])
     return res
 
 
-# In[119]:
+# In[5]:
 
 
 def WordsProcessing(words):
+    qualityFlag = []
     N = len(words)  # Количество слов
 
     # Создаем массив для записи результатов
@@ -191,16 +144,8 @@ def WordsProcessing(words):
         order.append(None)
 
     resultStrict = StrictCheck(words)  # матрица с вероятностями после строгой проверки
-    resultGramma = GrammaCheck(
-        words)  # матрица с вероятностями после проверки по грамматике (окончания фамилий и отчеств)
 
-    # Суммируем полученные значения
-    # результат по грамматике учитывается только в случае если данное слово нигде не найдено
-    # вынужденый шаг, чтобы помогать определить фамилии которых нет в базе, но при этом не мешать остальным значениям
-    for i in range(N):
-        if resultStrict[i].count(0) == 3:
-            for j in range(3):
-                resultStrict[i][j] += resultGramma[i][j]
+    # Теперь когда у нас база отчеств полная, используем проверку по грамматике только после, когда не прошла строгая проверка
 
     recurMatrix = RecursiveProcessing(
         copy.deepcopy(resultStrict))  # проводится обработка матрицы (выбираются очевидные варианты)
@@ -209,9 +154,20 @@ def WordsProcessing(words):
 
     if check:
         order = GetOrder(recurMatrix)  # определяем порядок слов и записываем их в результат
+        qualityFlag.append(0)
         for i in range(N):
             result[order[i]].append(words[i])
     else:
+        resultGramma = GrammaCheck(
+            words)  # матрица с вероятностями после проверки по грамматике (окончания фамилий и отчеств)
+        # Суммируем полученные значения
+        # результат по грамматике учитывается только в случае если данное слово нигде не найдено
+        # вынужденый шаг, чтобы помогать определить фамилии которых нет в базе, но при этом не мешать остальным значениям
+        for i in range(N):
+            if resultStrict[i].count(0) == 3:
+                for j in range(3):
+                    resultStrict[i][j] += resultGramma[i][j]
+
         replaceWords = []  # матрица для слов, полученных в результате нечеткого поиска
         replaceValues = []  # матрица вероятностей, соответсвующих словам из нечеткого поиска
         for i in range(N):
@@ -268,10 +224,26 @@ def WordsProcessing(words):
         for i in range(N):
             result[order[i]].append(replaceWords[i][order[i]])
 
-    return result, order  # + probability + добавить разные варинаты результата
+        # Значения qualityFlag: 0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах.
+        for i in range(N):
+            if replaceWords[i][order[i]] in bases[order[i]]:
+                if (bases[order[i]][replaceWords[i][order[i]]] < qualityCheck):
+                    qualityFlag.append([2, replaceWords[i][order[i]]])  # редкое слово
+            if replaceWords[i][order[i]] not in bases[order[i]]:
+                qualityFlag.append([4, replaceWords[i][order[i]]])  # слово которого нет в базах
+            if replaceWords[i][order[i]] not in words:
+                qualityFlag.append([1, replaceWords[i][order[i]]])  # слово на которое поменяли
+
+        gender = CheckGender(result)  # получаем пол, исходя из результата
+        # Если пол с ошибкой, т.е. Петров Анна, значит что-то подозрительное
+        if gender == genderTuple[3]:
+            qualityFlag.append([3])
+            # Значения qualityFlag: 0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах.
+
+    return result, order, qualityFlag  # + probability + добавить разные варинаты результата
 
 
-# In[120]:
+# In[6]:
 
 
 def RecursiveProcessing(matrix, matrixOld=None, flag=False, aproximation=roundAproximationForRecursionStart):
@@ -351,7 +323,7 @@ def RecursiveProcessing(matrix, matrixOld=None, flag=False, aproximation=roundAp
         return RecursiveProcessing(matrix, matrixOld, flag, aproximation - 1)
 
 
-# In[121]:
+# In[7]:
 
 
 def ComplexOrder(matrix, order):
@@ -425,7 +397,7 @@ def ComplexOrder(matrix, order):
     return GetComplexOrder(matrix, order)
 
 
-# In[122]:
+# In[8]:
 
 
 def ExcludeDefined(matrix, order):
@@ -438,7 +410,7 @@ def ExcludeDefined(matrix, order):
                     matrix[i][j] = 0
 
 
-# In[123]:
+# In[9]:
 
 
 def RoundMatrix(matrix, n):
@@ -462,7 +434,7 @@ def RoundMatrix(matrix, n):
                 matrix[i][j] = 0
 
 
-# In[124]:
+# In[10]:
 
 
 def GetOrder(matrix):
@@ -478,7 +450,7 @@ def GetOrder(matrix):
     return order
 
 
-# In[125]:
+# In[11]:
 
 
 def GetComplexOrder(matrix, order):
@@ -494,7 +466,7 @@ def GetComplexOrder(matrix, order):
     return order
 
 
-# In[126]:
+# In[12]:
 
 
 def СheckMatrix(matrix):
@@ -509,7 +481,7 @@ def СheckMatrix(matrix):
     return True
 
 
-# In[127]:
+# In[13]:
 
 
 def StrictCheck(words):
@@ -525,7 +497,7 @@ def StrictCheck(words):
     return result
 
 
-# In[128]:
+# In[14]:
 
 
 def forReplaceCheck(w, list, mistakes=allowedDistanceInDamerauCheck):
@@ -568,7 +540,7 @@ def forReplaceCheck(w, list, mistakes=allowedDistanceInDamerauCheck):
     return keys[iMax], values[iMax]
 
 
-# In[129]:
+# In[15]:
 
 
 def levenshtein(s, t):  # подсчет расстояние Левенштейна (сейчас не используется)
@@ -592,7 +564,7 @@ def levenshtein(s, t):  # подсчет расстояние Левенштей
     return v1[len(t)]
 
 
-# In[130]:
+# In[16]:
 
 
 def damerau(s, t):  # расстояние Дамерау-Левенштейна (расстояние с перестановкой)
@@ -639,7 +611,7 @@ def damerau(s, t):  # расстояние Дамерау-Левенштейна
     return d[M - 1][N - 1]
 
 
-# In[131]:
+# In[17]:
 
 
 def GrammaCheck(words):
@@ -677,7 +649,7 @@ def GrammaCheck(words):
     # return result
 
 
-# In[132]:
+# In[18]:
 
 
 def checkSurnames(s):
@@ -690,7 +662,7 @@ def checkSurnames(s):
         return 0
 
 
-# In[133]:
+# In[19]:
 
 
 def checkPatronymic(s):
@@ -702,7 +674,7 @@ def checkPatronymic(s):
         return 0
 
 
-# In[134]:
+# In[20]:
 
 
 # Матрицы значения статистики порядка слов
@@ -737,13 +709,13 @@ def SetStatistics(order):
                     statistics[N - 1][i][j] -= 0.001
 
 
-# In[135]:
+# In[21]:
 
 
-genderTuple = ('.', 'М', 'Ж')  # массив значений пола
+genderTuple = ('.', 'М', 'Ж', 'Несоответствие')  # массив значений пола
 
 
-# In[136]:
+# In[22]:
 
 
 def CheckGender(result):
@@ -757,20 +729,19 @@ def CheckGender(result):
                 genderResult[i].append(genderTuple.index(basesFull[i][r][0]))
             else:
                 genderResult[i].append(methods[i](r))
-    print(genderResult)
+
     index = 0
     for i in range(3):
         for j in range(len(genderResult[i])):
-            print(index)
             if index == genderResult[i][j] or index == 0:
                 index = genderResult[i][j]
             elif index != genderResult[i][j] and genderResult[i][j] != 0:
-                index = 0
+                index = 3
                 return genderTuple[index]
     return genderTuple[index]
 
 
-# In[137]:
+# In[23]:
 
 
 def checkSurnamesGender(s):
@@ -794,7 +765,7 @@ def checkSurnamesGender(s):
         # return genderTuple[0] #Можно сделать другой вывод
 
 
-# In[138]:
+# In[24]:
 
 
 def checkPatronymicGender(s):
@@ -811,7 +782,7 @@ def checkPatronymicGender(s):
         return 0
 
 
-# In[139]:
+# In[25]:
 
 
 # Работа с базами, загрузка и обработка
@@ -834,17 +805,17 @@ all_surnames = {}
 all_names = {}
 all_patronymics = {}
 for s in surnames:
-    all_surnames[s] = surnames[s]
+    all_surnames[s] = surnames[s][1]
 for s in names:
-    all_names[s] = names[s][1]
+    all_names[s] = names[s][2]
 for s in patronymics:
-    all_patronymics[s] = patronymics[s][1]
+    all_patronymics[s] = patronymics[s][2]
 
 bases = [all_surnames, all_names, all_patronymics]
 basesFull = [surnames, names, patronymics]
 
 
-# In[140]:
+# In[26]:
 
 
 # старый модуль с полами, не используется
