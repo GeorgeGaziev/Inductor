@@ -7,7 +7,6 @@ import copy
 import math
 
 
-
 def process():
     wb = xw.Book.caller()
     data = wb.selection
@@ -15,32 +14,52 @@ def process():
 
     newSheetName = sheetName + "-Changed"
 
-    sheetPresence=False
+    sheetPresence = False
     for i in wb.sheets:
-        if i.name==newSheetName:
-            sheetPresence=True
+        if i.name == newSheetName:
+            sheetPresence = True
 
-
-    if sheetPresence==False:
+    if sheetPresence == False:
         xw.sheets.add(newSheetName, None, xw.sheets.active)
 
-    wb.sheets[newSheetName].clear()
-    wb.sheets[newSheetName].select()
-    wb.sheets[newSheetName].range('A1').value = "Данные обрабатываются..."
+    currentSheet = wb.sheets[newSheetName]
+    currentSheet.clear()
+    currentSheet.select()
+    currentSheet.range('A1').value = "Данные обрабатываются..."
+    currentSheet.autofit()
+
     newData = NotBruteAtAll(data.value)
 
-    counter = 1
-    # Значения qualityFlag: 0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах."
-    color = {
-        0: (0,128,0), #green
-        1: (255,255,0), #yellow
-        2: (0,0,255), #blue
-        3: (255,0,0) #red
+    currentSheet.clear()
+
+    #0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах."
+    markerInfo = {
+        0: ["Без изменений", (33, 128, 54)],  # green
+        1: ["Замена", (255, 255, 0)],  # yellow
+        2: ["Редкое слово", (154,205,50)],  # yellow-green
+        3: ["Несовпадение пола", (255, 165, 0)],  # orange
+        4: ["Слово не найдено", (255, 0, 0)]  # red
     }
 
+
+    RowCounter = 1
     for result in newData:
-        wb.sheets[newSheetName].range('A' + str(counter)).value = result
-        counter +=1
+        if type(result[1][0])==list:
+            marker = result[1][0]
+        else:
+            marker = result[1][0]
+
+        currentSheet.range('A' + str(RowCounter)).value = result[0]
+        currentSheet.range('B' + str(RowCounter)).value = markerInfo[marker][0]
+        currentSheet.range('B' + str(RowCounter)).color = markerInfo[marker][1]
+
+        if marker == 1:
+            currentSheet.range('C' + str(RowCounter)).value = "\"" + result[1][1].title() + "\" на \"" + result[1][2].title() + "\""
+        else:
+            currentSheet.range('C' + str(RowCounter)).value = result[1][1].title()
+        RowCounter += 1
+
+    currentSheet.autofit()
 
 
 
@@ -115,11 +134,16 @@ def NotBruteAtAll(temp):
         output = ""
         for r in result:
             for w in r:
+                w = w.strip()
                 output += w.title() + " "
-        output.strip()
+        output=output.strip()
         # output += gender
+        qualityResult = [0,""]
+        for i in qualityFlag:
+            if i[0] >= qualityResult[0]:
+                qualityResult = i
 
-        res.append([output, qualityFlag])
+        res.append([output, qualityResult])
     return res
 
 
@@ -154,7 +178,7 @@ def WordsProcessing(words):
 
     if check:
         order = GetOrder(recurMatrix)  # определяем порядок слов и записываем их в результат
-        qualityFlag.append(0)
+        qualityFlag.append([0,""])
         for i in range(N):
             result[order[i]].append(words[i])
     else:
@@ -232,7 +256,7 @@ def WordsProcessing(words):
             if replaceWords[i][order[i]] not in bases[order[i]]:
                 qualityFlag.append([4, replaceWords[i][order[i]]])  # слово которого нет в базах
             if replaceWords[i][order[i]] not in words:
-                qualityFlag.append([1, replaceWords[i][order[i]]])  # слово на которое поменяли
+                qualityFlag.append([1,words[i], replaceWords[i][order[i]]])  # слово на которое поменяли
 
         gender = CheckGender(result)  # получаем пол, исходя из результата
         # Если пол с ошибкой, т.е. Петров Анна, значит что-то подозрительное
