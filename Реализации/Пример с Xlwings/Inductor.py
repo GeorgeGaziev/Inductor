@@ -152,12 +152,10 @@ def NotBruteAtAll(temp):
             for w in r:
                 output += w.title() + " "
         output = output.strip()
-        # output += gender
-        qualityResult = [-1, ""]
-        for i in qualityFlag:
-            if i[0] >= qualityResult[0]:
-                qualityResult = i
 
+        qualityResult = [0,""]
+        if len(qualityFlag)>1 and qualityResult in qualityFlag:
+            qualityFlag.remove(qualityResult)
         res.append([output, qualityFlag])
     return res
 
