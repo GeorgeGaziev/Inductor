@@ -32,35 +32,52 @@ def process():
 
     currentSheet.clear()
 
-    #0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах."
+    # 0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах."
     markerInfo = {
         0: ["Без изменений", (33, 128, 54)],  # green
         1: ["Замена", (255, 255, 0)],  # yellow
-        2: ["Редкое слово", (154,205,50)],  # yellow-green
+        2: ["Редкое слово", (154, 205, 50)],  # yellow-green
         3: ["Несовпадение пола", (255, 165, 0)],  # orange
-        4: ["Слово не найдено", (255, 0, 0)]  # red
+        4: ["Слово не найдено", (255, 0, 0)],  # red
+        5: ["Возникло несколько ошибок", (255, 0, 0)]
     }
-
 
     RowCounter = 1
     for result in newData:
-        if type(result[1][0])==list:
-            marker = result[1][0]
-        else:
-            marker = result[1][0]
+
+        marker = []
+
+        for res in result[1]:
+            if type(res)==int:
+                marker.append(res)
+            else:
+                marker.append(res[0])
 
         currentSheet.range('A' + str(RowCounter)).value = result[0]
-        currentSheet.range('B' + str(RowCounter)).value = markerInfo[marker][0]
-        currentSheet.range('B' + str(RowCounter)).color = markerInfo[marker][1]
+        if len(marker) == 1:
+            # один результат
+            currentSheet.range('B' + str(RowCounter)).color = markerInfo[marker[0]][1]
+            currentSheet.range('B' + str(RowCounter)).value = markerInfo[marker[0]][0]
+            if marker[0] == 1:
+                currentSheet.range('C' + str(RowCounter)).value = "\"" + result[1][0][1].title() + "\" на \"" + result[1][0][2].title() + "\""
+            else:
+                currentSheet.range('C' + str(RowCounter)).value = result[1][0][1].title()
 
-        if marker == 1:
-            currentSheet.range('C' + str(RowCounter)).value = "\"" + result[1][1].title() + "\" на \"" + result[1][2].title() + "\""
         else:
-            currentSheet.range('C' + str(RowCounter)).value = result[1][1].title()
+            # несколько результатов
+            currentSheet.range('B' + str(RowCounter)).color = markerInfo[5][1]
+            currentSheet.range('B' + str(RowCounter)).value = markerInfo[5][0]
+            info = ""
+            for res in result[1]:
+                if res[0] == 1:
+                    info = info + markerInfo[res[0]][0] + ": \"" + res[1].title() + "\" на \"" + res[2].title() + "\";"
+                elif res[0] == 3:
+                    info = info + markerInfo[res[0]][0] + ";"
+                else:
+                    info = info + markerInfo[res[0]][0] + ": "+ res[1].title() + ";"
+            currentSheet.range('C' + str(RowCounter)).value = info
         RowCounter += 1
-
     currentSheet.autofit()
-
 
 
 # Используемые константы
@@ -115,7 +132,6 @@ qualityCheck = 0.0000001
 
 # In[4]:
 
-
 def NotBruteAtAll(temp):
     res = []
     for t in temp:
@@ -134,20 +150,19 @@ def NotBruteAtAll(temp):
         output = ""
         for r in result:
             for w in r:
-                w = w.strip()
                 output += w.title() + " "
-        output=output.strip()
+        output = output.strip()
         # output += gender
-        qualityResult = [0,""]
+        qualityResult = [-1, ""]
         for i in qualityFlag:
             if i[0] >= qualityResult[0]:
                 qualityResult = i
 
-        res.append([output, qualityResult])
+        res.append([output, qualityFlag])
     return res
 
 
-# In[5]:
+# In[42]:
 
 
 def WordsProcessing(words):
@@ -178,9 +193,13 @@ def WordsProcessing(words):
 
     if check:
         order = GetOrder(recurMatrix)  # определяем порядок слов и записываем их в результат
-        qualityFlag.append([0,""])
+        qualityFlag.append([0, ""])
         for i in range(N):
             result[order[i]].append(words[i])
+        for i in range(N):
+            if words[i] in bases[order[i]]:
+                if (bases[order[i]][words[i]]<qualityCheck):
+                    qualityFlag.append([2,words[i]]) #редкое слово
     else:
         resultGramma = GrammaCheck(
             words)  # матрица с вероятностями после проверки по грамматике (окончания фамилий и отчеств)
@@ -256,18 +275,18 @@ def WordsProcessing(words):
             if replaceWords[i][order[i]] not in bases[order[i]]:
                 qualityFlag.append([4, replaceWords[i][order[i]]])  # слово которого нет в базах
             if replaceWords[i][order[i]] not in words:
-                qualityFlag.append([1,words[i], replaceWords[i][order[i]]])  # слово на которое поменяли
+                qualityFlag.append([1, words[i], replaceWords[i][order[i]]])  # слово на которое поменяли
 
-        gender = CheckGender(result)  # получаем пол, исходя из результата
-        # Если пол с ошибкой, т.е. Петров Анна, значит что-то подозрительное
-        if gender == genderTuple[3]:
-            qualityFlag.append([3])
-            # Значения qualityFlag: 0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах.
+    gender = CheckGender(result)  # получаем пол, исходя из результата
+    # Если пол с ошибкой, т.е. Петров Анна, значит что-то подозрительное
+    if gender == genderTuple[3]:
+        qualityFlag.append([3, ""])
+        # Значения qualityFlag: 0 = все отлично, 1 = что-то поменяли, 2 = слишком редкое слово, 3 = странный пол, 4 = слова нет в базах.
 
     return result, order, qualityFlag  # + probability + добавить разные варинаты результата
 
 
-# In[6]:
+# In[7]:
 
 
 def RecursiveProcessing(matrix, matrixOld=None, flag=False, aproximation=roundAproximationForRecursionStart):
@@ -347,7 +366,7 @@ def RecursiveProcessing(matrix, matrixOld=None, flag=False, aproximation=roundAp
         return RecursiveProcessing(matrix, matrixOld, flag, aproximation - 1)
 
 
-# In[7]:
+# In[8]:
 
 
 def ComplexOrder(matrix, order):
@@ -421,7 +440,7 @@ def ComplexOrder(matrix, order):
     return GetComplexOrder(matrix, order)
 
 
-# In[8]:
+# In[9]:
 
 
 def ExcludeDefined(matrix, order):
@@ -434,7 +453,7 @@ def ExcludeDefined(matrix, order):
                     matrix[i][j] = 0
 
 
-# In[9]:
+# In[10]:
 
 
 def RoundMatrix(matrix, n):
@@ -458,7 +477,7 @@ def RoundMatrix(matrix, n):
                 matrix[i][j] = 0
 
 
-# In[10]:
+# In[11]:
 
 
 def GetOrder(matrix):
@@ -474,7 +493,7 @@ def GetOrder(matrix):
     return order
 
 
-# In[11]:
+# In[12]:
 
 
 def GetComplexOrder(matrix, order):
@@ -490,7 +509,7 @@ def GetComplexOrder(matrix, order):
     return order
 
 
-# In[12]:
+# In[13]:
 
 
 def СheckMatrix(matrix):
@@ -505,7 +524,7 @@ def СheckMatrix(matrix):
     return True
 
 
-# In[13]:
+# In[14]:
 
 
 def StrictCheck(words):
@@ -521,7 +540,7 @@ def StrictCheck(words):
     return result
 
 
-# In[14]:
+# In[15]:
 
 
 def forReplaceCheck(w, list, mistakes=allowedDistanceInDamerauCheck):
@@ -564,7 +583,7 @@ def forReplaceCheck(w, list, mistakes=allowedDistanceInDamerauCheck):
     return keys[iMax], values[iMax]
 
 
-# In[15]:
+# In[16]:
 
 
 def levenshtein(s, t):  # подсчет расстояние Левенштейна (сейчас не используется)
@@ -588,7 +607,7 @@ def levenshtein(s, t):  # подсчет расстояние Левенштей
     return v1[len(t)]
 
 
-# In[16]:
+# In[17]:
 
 
 def damerau(s, t):  # расстояние Дамерау-Левенштейна (расстояние с перестановкой)
@@ -635,7 +654,7 @@ def damerau(s, t):  # расстояние Дамерау-Левенштейна
     return d[M - 1][N - 1]
 
 
-# In[17]:
+# In[18]:
 
 
 def GrammaCheck(words):
@@ -673,7 +692,7 @@ def GrammaCheck(words):
     # return result
 
 
-# In[18]:
+# In[19]:
 
 
 def checkSurnames(s):
@@ -686,7 +705,7 @@ def checkSurnames(s):
         return 0
 
 
-# In[19]:
+# In[20]:
 
 
 def checkPatronymic(s):
@@ -698,7 +717,7 @@ def checkPatronymic(s):
         return 0
 
 
-# In[20]:
+# In[21]:
 
 
 # Матрицы значения статистики порядка слов
@@ -733,13 +752,13 @@ def SetStatistics(order):
                     statistics[N - 1][i][j] -= 0.001
 
 
-# In[21]:
+# In[22]:
 
 
 genderTuple = ('.', 'М', 'Ж', 'Несоответствие')  # массив значений пола
 
 
-# In[22]:
+# In[23]:
 
 
 def CheckGender(result):
@@ -765,7 +784,7 @@ def CheckGender(result):
     return genderTuple[index]
 
 
-# In[23]:
+# In[24]:
 
 
 def checkSurnamesGender(s):
@@ -789,7 +808,7 @@ def checkSurnamesGender(s):
         # return genderTuple[0] #Можно сделать другой вывод
 
 
-# In[24]:
+# In[25]:
 
 
 def checkPatronymicGender(s):
@@ -806,7 +825,7 @@ def checkPatronymicGender(s):
         return 0
 
 
-# In[25]:
+# In[26]:
 
 
 # Работа с базами, загрузка и обработка
@@ -839,7 +858,7 @@ bases = [all_surnames, all_names, all_patronymics]
 basesFull = [surnames, names, patronymics]
 
 
-# In[26]:
+# In[27]:
 
 
 # старый модуль с полами, не используется
