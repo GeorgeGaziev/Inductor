@@ -1,10 +1,10 @@
 import xlwings as xw
-import os
-import pickle
-import re
-import numpy as np
-import copy
-import math
+#import os
+#import pickle
+#import re
+#import numpy as np
+#import copy
+#import math
 
 
 def process():
@@ -88,15 +88,13 @@ def process():
 import re
 import copy
 
-# import math
-
 
 # In[2]:
 
 
 # Используемые константы
 
-pathDirectory = ""  # Путь к папке, где хранятся все базы
+pathDirectory = "D:/Google Диск/Inductor_ФИО/Inductor/Реализации/Пример с Xlwings/Data/"  # Путь к папке, где хранятся все базы
 
 surnamesFile = "surnames.csv"  # Имя файла с фамилиями
 
@@ -259,17 +257,17 @@ bases = [surnames, names, patronymics]
 # Загрузка деревьев
 import datrie
 
-surnamesTrie = datrie.BaseTrie.load('surnamesTrie.trie')
+surnamesTrie = datrie.BaseTrie.load(pathDirectory +'surnamesTrie.trie')
 # namesTrie = datrie.BaseTrie.load('namesTrie.trie')
-namesTrie = datrie.BaseTrie.load('namesAllTrie.trie')
-patronymicsTrie = datrie.BaseTrie.load('patronymicsTrie.trie')
+namesTrie = datrie.BaseTrie.load(pathDirectory +'namesAllTrie.trie')
+patronymicsTrie = datrie.BaseTrie.load(pathDirectory +'patronymicsTrie.trie')
 
 tries = [surnamesTrie, namesTrie, patronymicsTrie]
 
-surnamesTrieReverse = datrie.BaseTrie.load('surnamesTrieReverse.trie')
+surnamesTrieReverse = datrie.BaseTrie.load(pathDirectory + 'surnamesTrieReverse.trie')
 # namesTrieReverse = datrie.BaseTrie.load('namesTrieReverse.trie')
-namesTrieReverse = datrie.BaseTrie.load('namesAllTrieReverse.trie')
-patronymicsTrieReverse = datrie.BaseTrie.load('patronymicsTrieReverse.trie')
+namesTrieReverse = datrie.BaseTrie.load(pathDirectory + 'namesAllTrieReverse.trie')
+patronymicsTrieReverse = datrie.BaseTrie.load(pathDirectory + 'patronymicsTrieReverse.trie')
 
 triesReverse = [surnamesTrieReverse, namesTrieReverse, patronymicsTrieReverse]
 
@@ -895,20 +893,6 @@ def NotBruteAtAll(imput):
 
         result, order, qualityFlag = WordsProcessing(line)
 
-        # !!!!!!!!!!!!!!!!!!!!!!!!!
-        # #Заменяем слово соответствующей ему полной формой имени
-        # i = 1 #База с именами
-        # for j in range(len(result[i])):
-        #     if result[i][j] in bases[i] and bases[i][result[i][j]]["full_form"] != "":
-        #         result[i][j] = bases[i][result[i][j]]["full_form"][0]
-        #         #Пока что первый элемент, пока не сделаю реализацию нескольких вариантов
-        #
-        # #Заменяем слово соответствующей ему Ё-формой
-        # for i in range(len(result)):
-        #     for j in range(len(result[i])):
-        #         if result[i][j] in bases[i] and bases[i][result[i][j]]["yoform"]!="":
-        #             result[i][j] = bases[i][result[i][j]]["yoform"]
-
         SetStatistics(order)  # обновляем статистику
         gender = CheckGender(result)  # получаем пол, исходя из результата
 
@@ -923,11 +907,10 @@ def NotBruteAtAll(imput):
         qualityTemp = [0, ""]
         if len(qualityFlag) > 1 and qualityTemp in qualityFlag:
             qualityFlag.remove(qualityTemp)
-        qualityResult = []
-        for q in qualityFlag:
-            qualityResult.append([typesOfMistakes[q[0]], q[1]])
-        res.append([output, qualityResult])
+        # qualityResult = []
+        # for q in qualityFlag:
+        #     qualityResult.append([typesOfMistakes[q[0]], q[1]])
+        res.append([output, qualityFlag])
     return res
 
-
-
+#print(NotBruteAtAll(["Иванов Иван"]))
